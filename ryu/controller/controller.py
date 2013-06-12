@@ -17,13 +17,11 @@
 import contextlib
 from oslo.config import cfg
 import logging
-import gevent
+from ryu.lib import hub
+from ryu.lib.hub import StreamServer
 import traceback
 import random
-import greenlet
 import ssl
-from gevent.server import StreamServer
-from gevent.queue import Queue
 
 import ryu.base.app_manager
 
@@ -39,6 +37,8 @@ from ryu.ofproto import nx_match
 
 from ryu.controller import handler
 from ryu.controller import ofp_event
+
+from ryu.lib.dpid import dpid_to_str
 
 LOG = logging.getLogger('ryu.controller.controller')
 
@@ -95,11 +95,6 @@ def _deactivate(method):
     def deactivate(self):
         try:
             method(self)
-        except greenlet.GreenletExit:
-            pass
-        except:
-            traceback.print_exc()
-            raise
         finally:
             self.is_active = False
     return deactivate
@@ -124,7 +119,7 @@ class Datapath(object):
 
         # The limit is arbitrary. We need to limit queue size to
         # prevent it from eating memory up
-        self.send_q = Queue(16)
+        self.send_q = hub.Queue(16)
 
         self.set_version(max(self.supported_ofp_version))
         self.xid = random.randint(0, self.ofproto.MAX_XID)
@@ -188,7 +183,7 @@ class Datapath(object):
                 count += 1
                 if count > 2048:
                     count = 0
-                    gevent.sleep(0)
+                    hub.sleep(0)
 
     @_deactivate
     def _send_loop(self):
@@ -197,7 +192,16 @@ class Datapath(object):
                 buf = self.send_q.get()
                 self.socket.sendall(buf)
         finally:
+            q = self.send_q
+            # first, clear self.send_q to prevent new references.
             self.send_q = None
+            # there might be threads currently blocking in send_q.put().
+            # unblock them by draining the queue.
+            try:
+                while q.get(block=False):
+                    pass
+            except hub.QueueEmpty:
+                pass
 
     def send(self, buf):
         if self.send_q:
@@ -218,7 +222,7 @@ class Datapath(object):
         self.send(msg.buf)
 
     def serve(self):
-        send_thr = gevent.spawn(self._send_loop)
+        send_thr = hub.spawn(self._send_loop)
 
         # send hello message immediately
         hello = self.ofproto_parser.OFPHello(self)
@@ -227,8 +231,8 @@ class Datapath(object):
         try:
             self._recv_loop()
         finally:
-            gevent.kill(send_thr)
-            gevent.joinall([send_thr])
+            hub.kill(send_thr)
+            hub.joinall([send_thr])
 
     #
     # Utility methods for convenience
@@ -312,5 +316,5 @@ def datapath_connection_factory(socket, address):
             # the parser raise exception.
             # Can we do anything more graceful?
             LOG.error("Error in the datapath %s from %s",
-                      datapath.id, address)
+                      dpid_to_str(datapath.id), address)
             raise

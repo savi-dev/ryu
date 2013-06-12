@@ -22,10 +22,29 @@ from ryu.ofproto import ether
 
 
 class mpls(packet_base.PacketBase):
+    """MPLS (RFC 3032) header encoder/decoder class.
+
+    NOTE: When decoding, this implementation assumes that the inner protocol
+    is IPv4.
+
+    An instance has the following attributes at least.
+    Most of them are same to the on-wire counterparts but in host byte order.
+    __init__ takes the correspondig args in this order.
+
+    ============== ====================
+    Attribute      Description
+    ============== ====================
+    label          Label Value
+    exp            Experimental Use
+    bsb            Bottom of Stack
+    ttl            Time To Live
+    ============== ====================
+    """
+
     _PACK_STR = '!I'
     _MIN_LEN = struct.calcsize(_PACK_STR)
 
-    def __init__(self, label, exp, bsb, ttl):
+    def __init__(self, label=0, exp=0, bsb=1, ttl=255):
         super(mpls, self).__init__()
         self.label = label
         self.exp = exp

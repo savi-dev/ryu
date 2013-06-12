@@ -21,15 +21,56 @@ from . import icmp
 from . import udp
 from . import tcp
 from ryu.ofproto import inet
+from ryu.lib import ip
+
+
+IPV4_ADDRESS_PACK_STR = '!I'
+IPV4_ADDRESS_LEN = struct.calcsize(IPV4_ADDRESS_PACK_STR)
+IPV4_PSEUDO_HEADER_PACK_STR = '!II2xHH'
 
 
 class ipv4(packet_base.PacketBase):
+    """IPv4 (RFC 791) header encoder/decoder class.
+
+    NOTE: When decoding, this implementation tries to decode the upper
+    layer protocol even for a fragmented datagram.  It isn't likely
+    what a user would want.
+
+    An instance has the following attributes at least.
+    Most of them are same to the on-wire counterparts but in host byte order.
+    __init__ takes the correspondig args in this order.
+
+    ============== ====================
+    Attribute      Description
+    ============== ====================
+    version        Version
+    header_length  IHL
+    tos            Type of Service
+    total_length   Total Length \
+                   (0 means automatically-calculate when encoding)
+    identification Identification
+    flags          Flags
+    offset         Fragment Offset
+    ttl            Time to Live
+    proto          Protocol
+    csum           Header Checksum \
+                   (Ignored and automatically-calculated when encoding)
+    src            Source Address
+    dst            Destination Address
+    option         A bytearray which contains the entire Options, or None for \
+                   no Options
+    ============== ====================
+    """
+
     _PACK_STR = '!BBHHHBBHII'
     _MIN_LEN = struct.calcsize(_PACK_STR)
 
-    def __init__(self, version, header_length, tos, total_length,
-                 identification, flags, offset, ttl, proto, csum,
-                 src, dst, option=None):
+    def __init__(self, version=4, header_length=5, tos=0,
+                 total_length=0, identification=0, flags=0,
+                 offset=0, ttl=255, proto=0, csum=0,
+                 src=ip.ipv4_to_bin('0.0.0.0'),
+                 dst=ip.ipv4_to_bin('0.0.0.0'),
+                 option=None):
         super(ipv4, self).__init__()
         self.version = version
         self.header_length = header_length

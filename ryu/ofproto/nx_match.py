@@ -22,7 +22,6 @@ from ryu import exception
 from ryu.lib import mac
 from . import ofproto_parser
 from . import ofproto_v1_0
-from . import ether
 from . import inet
 
 import logging
@@ -614,6 +613,7 @@ class MFIPSrc(MFField):
     def __init__(self, header, value, mask=None):
         super(MFIPSrc, self).__init__(header, MFIPSrc.pack_str)
         self.value = value
+        self.mask = mask
 
     @classmethod
     def make(cls, header):
@@ -633,6 +633,7 @@ class MFIPDst(MFField):
     def __init__(self, header, value, mask=None):
         super(MFIPDst, self).__init__(header, MFIPDst.pack_str)
         self.value = value
+        self.mask = mask
 
     @classmethod
     def make(cls, header):
@@ -740,7 +741,7 @@ class MFIPV6(object):
 @_set_nxm_headers([ofproto_v1_0.NXM_NX_IPV6_SRC,
                    ofproto_v1_0.NXM_NX_IPV6_SRC_W])
 @MFField.register_field_header([ofproto_v1_0.NXM_NX_IPV6_SRC,
-                   ofproto_v1_0.NXM_NX_IPV6_SRC_W])
+                                ofproto_v1_0.NXM_NX_IPV6_SRC_W])
 class MFIPV6Src(MFIPV6, MFField):
     def __init__(self, header, value, mask=None):
         super(MFIPV6Src, self).__init__(header, MFIPV6Src.pack_str)
@@ -761,7 +762,7 @@ class MFIPV6Src(MFIPV6, MFField):
 @_set_nxm_headers([ofproto_v1_0.NXM_NX_IPV6_DST,
                    ofproto_v1_0.NXM_NX_IPV6_DST_W])
 @MFField.register_field_header([ofproto_v1_0.NXM_NX_IPV6_DST,
-                   ofproto_v1_0.NXM_NX_IPV6_DST_W])
+                                ofproto_v1_0.NXM_NX_IPV6_DST_W])
 class MFIPV6Dst(MFIPV6, MFField):
     def __init__(self, header, value, mask=None):
         super(MFIPV6Dst, self).__init__(header, MFIPV6Dst.pack_str)

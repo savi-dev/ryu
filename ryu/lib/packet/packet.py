@@ -13,22 +13,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
+
 from . import packet_base
 from . import ethernet
 
 
 class Packet(object):
-    def __init__(self, data=None):
+    """A packet decoder/encoder class.
+
+    An instance is used to either decode or encode a single packet.
+
+    *data* is a bytearray to describe a raw datagram to decode.
+    When decoding, a Packet object is iteratable.
+    Iterated values are protocol (ethernet, ipv4, ...) headers and the payload.
+    Protocol headers are instances of subclass of packet_base.PacketBase.
+    The payload is a bytearray.  They are iterated in on-wire order.
+
+    *data* should be omitted when encoding a packet.
+    """
+
+    def __init__(self, data=None, protocols=None, parse_cls=ethernet.ethernet):
         super(Packet, self).__init__()
         self.data = data
-        self.protocols = []
+        if protocols is None:
+            self.protocols = []
+        else:
+            self.protocols = protocols
         self.protocol_idx = 0
         self.parsed_bytes = 0
         if self.data:
-            # Do we need to handle non ethernet?
-            self.parser(ethernet.ethernet)
+            self._parser(parse_cls)
 
-    def parser(self, cls):
+    def _parser(self, cls):
         while cls:
             proto, cls = cls.parser(self.data[self.parsed_bytes:])
             if proto:
@@ -39,6 +56,11 @@ class Packet(object):
             self.protocols.append(self.data[self.parsed_bytes:])
 
     def serialize(self):
+        """Encode a packet and store the resulted bytearray in self.data.
+
+        This method is legal only when encoding a packet.
+        """
+
         self.data = bytearray()
         r = self.protocols[::-1]
         for i, p in enumerate(r):
@@ -53,7 +75,25 @@ class Packet(object):
             self.data = data + self.data
 
     def add_protocol(self, proto):
+        """Register a protocol *proto* for this packet.
+
+        This method is legal only when encoding a packet.
+
+        When encoding a packet, register a protocol (ethernet, ipv4, ...)
+        header to add to this packet.
+        Protocol headers should be registered in on-wire order before calling
+        self.serialize.
+        """
+
         self.protocols.append(proto)
+
+    def get_protocols(self, protocol):
+        """Returns a list of protocols that matches to the specified protocol.
+        """
+        if isinstance(protocol, packet_base.PacketBase):
+            protocol = protocol.__class__
+        assert issubclass(protocol, packet_base.PacketBase)
+        return [p for p in self.protocols if isinstance(p, protocol)]
 
     def next(self):
         try:
@@ -67,3 +107,21 @@ class Packet(object):
 
     def __iter__(self):
         return self
+
+    def __getitem__(self, idx):
+        return self.protocols[idx]
+
+    def __setitem__(self, idx, item):
+        self.protocols[idx] = item
+
+    def __delitem__(self, idx):
+        del self.protocols[idx]
+
+    def __len__(self):
+        return len(self.protocols)
+
+    def __contains__(self, protocol):
+        if (inspect.isclass(protocol) and
+                issubclass(protocol, packet_base.PacketBase)):
+            return protocol in [p.__class__ for p in self.protocols]
+        return protocol in self.protocols

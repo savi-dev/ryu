@@ -24,10 +24,26 @@ from ryu.ofproto.ofproto_parser import msg_pack_into
 
 
 class vlan(packet_base.PacketBase):
+    """VLAN (IEEE 802.1Q) header encoder/decoder class.
+
+    An instance has the following attributes at least.
+    Most of them are same to the on-wire counterparts but in host byte order.
+    __init__ takes the correspondig args in this order.
+
+    ============== ====================
+    Attribute      Description
+    ============== ====================
+    pcp            Priority Code Point
+    cfi            Canonical Format Indicator
+    vid            VLAN Identifier
+    ethertype      EtherType
+    ============== ====================
+    """
+
     _PACK_STR = "!HH"
     _MIN_LEN = struct.calcsize(_PACK_STR)
 
-    def __init__(self, pcp, cfi, vid, ethertype):
+    def __init__(self, pcp=0, cfi=0, vid=0, ethertype=ether.ETH_TYPE_IP):
         super(vlan, self).__init__()
         self.pcp = pcp
         self.cfi = cfi

@@ -36,10 +36,6 @@ from ryu.lib.ovs import bridge
 from ryu.lib.quantum_ifaces import QuantumIfaces
 
 
-from gevent import monkey
-monkey.patch_all()
-
-
 CONF = cfg.CONF
 
 
@@ -213,14 +209,7 @@ class OVSSwitch(object):
                 return
 
             port_data = {
-                'datapath_id': dpid_lib.dpid_to_str(self.dpid),
-                'port_no': port.ofport,
-
-                # In order to set
-                # port.status = quantum.common.constants.PORT_STATUS_DOWN
-                # port.status can't be changed via rest api directly,
-                # so resort to ryu-specical parameter to tell it.
-                'deleted': True
+                'status': 'DOWN'
             }
             body = {'port': port_data}
             # self.logger.debug("port-body = %s", body)

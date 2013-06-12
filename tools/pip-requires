@@ -1,4 +1,5 @@
-gevent>=0.13
+eventlet
 routes
 webob>=1.0.8
 paramiko
+netaddr
