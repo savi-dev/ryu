@@ -17,6 +17,7 @@
 
 import logging
 import gflags
+import time
 import migrate.changeset
 
 from ryu.exception import NetworkNotFound, NetworkAlreadyExist
@@ -37,20 +38,23 @@ FLAGS = gflags.FLAGS
 gflags.DEFINE_string('api_db_url', 'mysql://root:iheartdatabases@'+ \
                         'localhost/ryu?charset=utf8', 'Ryu Database URL')
 
+ARP_CACHE_SECONDS=60*10
+
 # Save API calls that may affect the state of the controller
 # Can be re-loaded if controller crashes
 class API_DB(object):
     def __init__(self):
         # Create any tables that don't already exist
-        self.createTables()
+        #self.createTables()
 
         self.db = SqlSoup(FLAGS.api_db_url)
-        self.db_nets = self.db.networks
-        self.db_ports = self.db.ports
-        self.db_macs = self.db.macs
-        self.db_bonds = self.db.bonds
-        self.db_flowspace = self.db.flowspace
-        self.db_net2slice = self.db.delegated_nets
+        self._mac_cache = {}
+        #self.db_nets = self.db.networks
+        #self.db_ports = self.db.ports
+        #self.db_macs = self.db.macs
+        #self.db_bonds = self.db.bonds
+        #self.db_flowspace = self.db.flowspace
+        #self.db_net2slice = self.db.delegated_nets
 
     def createTables(self):
         engine = create_engine(FLAGS.api_db_url)
@@ -386,4 +390,32 @@ class API_DB(object):
 
         self.db.commit()
 
+    def get_mac_address(self, ip):
+        con = self.db.engine.connect()
+        """
+        params = {}
+        params['dpid'] = dpid
+        params['m'] = flow_store.largest_id(i_dpid)
+        params['c'] = flow_store.number_of_flows(i_dpid)
+        res = self.exec_procedure(con, 'Check_Change2', params)
+        """
+        fetch = False
+        (mac_address, t) = self._mac_cache.get(ip, (None, None))
+        now = time.time()
+        #LOG.info("mac cache %s, %s" %(mac_address, t))
+        try:
+            if mac_address is None or t is None or (now - t) > ARP_CACHE_SECONDS:
+                self._mac_cache.pop(ip, None)
+                #LOG.info("select p.mac_address from ports p, ipallocations i where i.ip_address='%s' and p.id=i.port_id" % ip)
+                res = con.execute("select p.mac_address from ports p, ipallocations i where i.ip_address='%s' and p.id=i.port_id" % ip)
+                for row in res:
+                    mac_address = row['mac_address']
+                    self._mac_cache[ip] = (mac_address, now)
+                    #LOG.info("mac is %s, %s", mac_address, now)
+                    break
+        except:
+            mac_address = None
+            raise
+            #pass
+        return mac_address
 

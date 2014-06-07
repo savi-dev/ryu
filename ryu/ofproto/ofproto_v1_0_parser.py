@@ -1847,8 +1847,8 @@ class OFPFlowMod(MsgBase):
                  priority=ofproto_v1_0.OFP_DEFAULT_PRIORITY,
                  buffer_id=0xffffffff, out_port=ofproto_v1_0.OFPP_NONE,
                  flags=0, actions=None):
-        if actions is None:
-            actions = []
+        #if actions is None:
+        #    actions = []
         super(OFPFlowMod, self).__init__(datapath)
         self.match = match
         self.cookie = cookie

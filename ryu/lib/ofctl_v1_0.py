@@ -268,9 +268,15 @@ def mod_flow_entry(dp, flow, cmd):
     flags = int(flow.get('flags', 0))
     idle_timeout = int(flow.get('idle_timeout', 0))
     hard_timeout = int(flow.get('hard_timeout', 0))
-    actions = to_actions(dp, flow.get('actions', {}))
+    acts = flow.get('actions', None)
+    if acts:
+        actions = to_actions(dp, acts)
+    else:
+        actions = None
     match = to_match(dp, flow.get('match', {}))
     out_port = int(flow.get('out_port', ofproto_v1_0.OFPP_NONE))
+    if cmd == dp.ofproto.OFPFC_DELETE:
+        actions = None
 
     flow_mod = dp.ofproto_parser.OFPFlowMod(
         datapath=dp, match=match, cookie=cookie,
@@ -279,7 +285,6 @@ def mod_flow_entry(dp, flow, cmd):
         out_port=out_port, flags=flags, actions=actions)
 
     dp.send_msg(flow_mod)
-
 
 def delete_flow_entry(dp):
     match = dp.ofproto_parser.OFPMatch(
